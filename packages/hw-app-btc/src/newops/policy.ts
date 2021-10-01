@@ -1,6 +1,7 @@
-import { BufferWriter } from "bitcoinjs-lib/types/bufferutils";
-import { sha256 } from "bitcoinjs-lib/types/crypto";
+import bippath from "bip32-path";
+import { crypto } from "bitcoinjs-lib";
 import { Merkle } from "./merkle";
+import { createVarint } from "../varint";
 
 export type DefaultDescriptorTemplate = "pkh(@0)" | "sh(pkh(@0))" | "wpkh(@0)" | "tr(@0)";
 
@@ -17,7 +18,7 @@ export class WalletPolicy {
 
   getWalletId(): Buffer {
     // wallet_id (sha256 of the wallet serialization),     
-    return sha256(this.serialize());
+    return crypto.sha256(this.serialize());
   }
 
   serialize(): Buffer {
@@ -26,11 +27,12 @@ export class WalletPolicy {
     });
     const m = new Merkle(keyBuffers);
 
-    const buf = new BufferWriter(Buffer.of());
-    buf.writeUInt8(0);
-    buf.writeVarSlice(Buffer.from(this.descriptorTemplate, 'ascii'));
-    buf.writeSlice(m.getRoot());
-    return buf.buffer;
+    return Buffer.concat([
+      Buffer.of(0),
+      createVarint(this.descriptorTemplate.length),
+      Buffer.from(this.descriptorTemplate, 'ascii'),
+      m.getRoot(),
+    ]);
   }
 }
 
